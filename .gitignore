@@ -1,0 +1,9 @@
+AppData/
+node_modules/
+.env
+*.log
+*.jtx
+.DS_Store
+.vscode/
+.idea/
+*.lock
