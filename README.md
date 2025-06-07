@@ -130,5 +130,5 @@ The application is configured for deployment on Render. The `render.yaml` file c
 - Discord.js for the Discord API integration
 - WebSocket for real-time communication
 - Express.js for the web server
-```
+
 
