@@ -6,8 +6,11 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { Client, GatewayIntentBits, WebhookClient } = require('discord.js');
+const { exec } = require("child_process");
 
 console.log('Starting server...');
+
+// Environment variables check
 console.log('Environment variables check:');
 console.log('- DISCORD_BOT_TOKEN:', process.env.DISCORD_BOT_TOKEN ? '[HIDDEN]' : 'Missing');
 console.log('- DISCORD_WEBHOOK_URL:', process.env.DISCORD_WEBHOOK_URL ? '[HIDDEN]' : 'Missing');
@@ -247,86 +250,85 @@ discordClient.login(process.env.DISCORD_BOT_TOKEN).catch(err => {
 
 // WebSocket connection handling
 wss.on('connection', (ws, req) => {
-  const sessionId = crypto.randomUUID();
-  console.log('\n=== New WebSocket Connection ===');
-  console.log('Session ID:', sessionId);
-  // Remove logging of client IP for security
-  
-  const session = {
-    id: sessionId,
-    ws,
-    lastActivity: Date.now(),
-    messages: []
-  };
-  sessions.set(sessionId, session);
-
-  // Send session ID to client
-  ws.send(JSON.stringify({ type: 'session', sessionId }));
-  console.log('Session ID sent to client');
-
-  // Handle incoming messages
-  ws.on('message', async (data) => {
-    try {
-      const message = JSON.parse(data);
-      console.log('\n=== WebSocket Message Received ===');
-      console.log('Message:', message);
-      session.lastActivity = Date.now();
-      session.messages.push(message);
-
-      // Forward message to Discord
-      if (message.type === 'message' && message.from === 'User') {
-        const discordMessage = `**New Message from Chat**\nSession ID: \`${sessionId}\`\nMessage: ${message.text}\n\n*Reply to this message to respond to the user*`;
-        console.log('Sending to Discord:', discordMessage);
-        try {
-          const sentMessage = await webhookClient.send({
-            content: discordMessage,
-            allowedMentions: { parse: [] }  // Prevent unwanted mentions
-          });
-          
-          // Store the message ID to session ID mapping
-          messageToSession.set(sentMessage.id, sessionId);
-          console.log('Message sent to Discord successfully:', {
-            messageId: sentMessage.id,
-            channelId: sentMessage.channel_id,
-            sessionId: sessionId
-          });
-        } catch (err) {
-          console.error('Error sending to Discord:', err);
-          console.error('Error details:', {
-            message: err.message,
-            stack: err.stack
-          });
-          ws.send(JSON.stringify({
-            type: 'error',
-            text: 'Failed to send message to Discord. Please try again.'
-          }));
-        }
-      }
-      console.log('=== End WebSocket Message Processing ===\n');
-    } catch (err) {
-      console.error('WebSocket message error:', err);
-      ws.send(JSON.stringify({
-        type: 'error',
-        text: 'Error processing your message. Please try again.'
-      }));
-    }
-  });
-
-  // Handle disconnection
-  ws.on('close', () => {
-    console.log('\n=== WebSocket Connection Closed ===');
+    const sessionId = crypto.randomUUID();
+    console.log('\n=== New WebSocket Connection ===');
     console.log('Session ID:', sessionId);
-    sessions.delete(sessionId);
-    console.log('Session removed');
-  });
+    
+    // Send session ID to client
+    ws.send(JSON.stringify({ type: 'session', sessionId }));
+    console.log('Session ID sent to client');
 
-  // Handle errors
-  ws.on('error', (error) => {
-    console.error('\n=== WebSocket Error ===');
-    console.error('Session ID:', sessionId);
-    console.error('Error:', error);
-    sessions.delete(sessionId);
-  });
+    const session = {
+        id: sessionId,
+        ws,
+        lastActivity: Date.now(),
+        messages: []
+    };
+    sessions.set(sessionId, session);
+
+    // Handle incoming messages
+    ws.on('message', async (data) => {
+        try {
+            const message = JSON.parse(data);
+            console.log('\n=== WebSocket Message Received ===');
+            console.log('Message:', message);
+            session.lastActivity = Date.now();
+            session.messages.push(message);
+
+            // Forward message to Discord
+            if (message.type === 'message' && message.from === 'User') {
+                const discordMessage = `**New Message from Chat**\nSession ID: \`${sessionId}\`\nMessage: ${message.text}\n\n*Reply to this message to respond to the user*`;
+                console.log('Sending to Discord:', discordMessage);
+                try {
+                    const sentMessage = await webhookClient.send({
+                        content: discordMessage,
+                        allowedMentions: { parse: [] }  // Prevent unwanted mentions
+                    });
+                    
+                    // Store the message ID to session ID mapping
+                    messageToSession.set(sentMessage.id, sessionId);
+                    console.log('Message sent to Discord successfully:', {
+                        messageId: sentMessage.id,
+                        channelId: sentMessage.channel_id,
+                        sessionId: sessionId
+                    });
+                } catch (err) {
+                    console.error('Error sending to Discord:', err);
+                    console.error('Error details:', {
+                        message: err.message,
+                        stack: err.stack
+                    });
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        text: 'Failed to send message to Discord. Please try again.'
+                    }));
+                }
+            }
+            console.log('=== End WebSocket Message Processing ===\n');
+        } catch (err) {
+            console.error('WebSocket message error:', err);
+            ws.send(JSON.stringify({
+                type: 'error',
+                text: 'Error processing your message. Please try again.'
+            }));
+        }
+    });
+
+    // Handle disconnection
+    ws.on('close', () => {
+        console.log('\n=== WebSocket Connection Closed ===');
+        console.log('Session ID:', sessionId);
+        sessions.delete(sessionId);
+        console.log('Session removed');
+    });
+
+    // Handle errors
+    ws.on('error', (error) => {
+        console.error('\n=== WebSocket Error ===');
+        console.error('Session ID:', sessionId);
+        console.error('Error:', error);
+        sessions.delete(sessionId);
+    });
 });
 
 // Cleanup inactive sessions periodically

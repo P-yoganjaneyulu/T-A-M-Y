@@ -95,13 +95,14 @@
         }
 
         .message-content {
-            max-width: 70%;
+            max-width: 90%;
             padding: 12px 18px;
             border-radius: 20px;
             margin: 5px 0;
             position: relative;
             color: white;
             transition: transform 0.2s ease;
+            white-space: pre-wrap;
         }
 
         .message-content:hover {
@@ -314,7 +315,11 @@
         <div class="chat-header">
             <h1><span style="letter-spacing:0.3em">T A M Y</span><span style="font-size:0.6em;font-weight:normal;display:block;line-height:1;margin-top:0.05em;">Tech Assistant Made for You</span></h1>
         </div>
-        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content" id="welcomeMessageContent"></div>
+            </div>
+        </div>
         <div class="typing-indicator" id="typingIndicator">Admin is typing...</div>
         <div class="chat-input">
             <div class="input-container">
@@ -453,6 +458,33 @@
 
         // Initial connection
         connectWebSocket();
+
+        const welcomeMessageText = "🤖 Welcome to T A M Y ChatBot<br>How can I help you today?";
+        const welcomeMessageElement = document.getElementById('welcomeMessageContent');
+        let charIndex = 0;
+
+        function typeWelcomeMessage() {
+            console.log("typeWelcomeMessage called. charIndex:", charIndex, "welcomeMessageText:", welcomeMessageText);
+            if (charIndex < welcomeMessageText.length) {
+                // Check if the current sequence is '<br>'
+                if (welcomeMessageText.substring(charIndex, charIndex + 4) === '<br>') {
+                    console.log("Detected <br>! Appending HTML break.");
+                    welcomeMessageElement.innerHTML += '<br>';
+                    charIndex += 4; // Skip past the '<br>' string
+                } else {
+                    const char = welcomeMessageText.charAt(charIndex);
+                    console.log("Appending char:", char);
+                    welcomeMessageElement.innerHTML += char; // Append the character
+                    charIndex++;
+                }
+                setTimeout(typeWelcomeMessage, 50); // Adjust typing speed here (milliseconds)
+            } else {
+                console.log("Typewriter animation finished.");
+            }
+        }
+
+        // Start the typewriter animation when the page loads
+        window.onload = typeWelcomeMessage;
     </script>
 </body>
 </html>
